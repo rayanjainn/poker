@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
     "localhost:3000",
     "192.168.29.56",
     "10.10.113.38",
+    "poker-production-e4c9.up.railway.app",
   ],
 };
 
