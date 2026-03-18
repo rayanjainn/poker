@@ -579,7 +579,6 @@ async fn broadcast_messages(
             // Handle DB updates for hand results
             if let ServerMessage::HandResult { results, .. } = &msg {
                 let db = state.db.clone();
-                let table_id = *table_id;
                 let results = results.clone();
 
                 tokio::spawn(async move {

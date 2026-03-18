@@ -478,7 +478,6 @@ impl PokerTable {
         }
 
         // Set action to first active player after dealer
-        let hand = self.hand_state.as_ref().unwrap();
         let next_seat = self.next_active_betting_seat(self.dealer_index);
         if let Some(player) = self.players.iter().find(|p| p.seat == next_seat && !p.is_folded && !p.is_all_in) {
             let hand = self.hand_state.as_mut().unwrap();
