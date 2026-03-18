@@ -9,10 +9,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set");
 
-    println!("Connecting to database: {}", database_url);
+    println!("Connecting to database (establishing cloud pool)...");
 
     let db = PgPoolOptions::new()
         .max_connections(5)
+        .acquire_timeout(std::time::Duration::from_secs(120))
         .connect(&database_url)
         .await?;
 

@@ -40,12 +40,13 @@ async fn main() {
     let jwt_secret = std::env::var("JWT_SECRET")
         .unwrap_or_else(|_| "super-secret-jwt-key-change-in-production".to_string());
 
-    // Connect to database
+    // Connect to database with a longer timeout for remote cloud connections
     let db = sqlx::postgres::PgPoolOptions::new()
         .max_connections(20)
+        .acquire_timeout(std::time::Duration::from_secs(45)) // Longer timeout for remote DBs
         .connect(&database_url)
         .await
-        .expect("Failed to connect to database");
+        .expect("Failed to connect to database (PoolTimedOut)");
 
     tracing::info!("Database connected");
 

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_guest BOOLEAN NOT NULL DEFAULT FALSE,
     display_name VARCHAR(100) NOT NULL,
     avatar_url TEXT,
-    balance BIGINT NOT NULL DEFAULT 10000,
+    balance BIGINT NOT NULL DEFAULT 100000000000000,
     total_winnings BIGINT NOT NULL DEFAULT 0,
     total_hands_played INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
