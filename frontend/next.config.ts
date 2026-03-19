@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
+        source: "/proxy-api/:path*", // 👈 Changed prefix
         destination: "http://autorack.proxy.rlwy.net:56843/api/:path*",
       },
     ];
