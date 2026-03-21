@@ -19,7 +19,7 @@ interface AuthContextType {
     username: string,
     email: string,
     password: string,
-    displayName?: string
+    displayName?: string,
   ) => Promise<void>;
   guestLogin: () => Promise<void>;
   logout: () => void;
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })) as AuthResponse;
       handleAuth(response);
     },
-    [handleAuth]
+    [handleAuth],
   );
 
   const register = useCallback(
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: string,
       email: string,
       password: string,
-      displayName?: string
+      displayName?: string,
     ) => {
       const response = (await api.auth.register({
         username,
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })) as AuthResponse;
       handleAuth(response);
     },
-    [handleAuth]
+    [handleAuth],
   );
 
   const guestLogin = useCallback(async () => {

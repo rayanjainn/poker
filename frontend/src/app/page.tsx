@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Spade, Heart, Diamond, Club, Loader2 } from "lucide-react";
@@ -9,15 +9,20 @@ import { useAuth } from "@/hooks/useAuth";
 export default function HomePage() {
   const router = useRouter();
   const { user, guestLogin, isLoading } = useAuth();
+  const hasAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (user) {
       router.push("/lobby");
       return;
     }
-    if (!isLoading && !user) {
-      // Auto guest login
-      guestLogin().catch(console.log);
+    
+    // Auto guest login (only once)
+    if (!isLoading && !user && !hasAttemptedRef.current) {
+      hasAttemptedRef.current = true;
+      guestLogin().catch((e) => {
+        console.error("Guest login failed:", e);
+      });
     }
   }, [user, isLoading, guestLogin, router]);
 
@@ -29,7 +34,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden bg-[#0a0a0b]">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {Array.from({ length: 8 }).map((_, i) => {
@@ -79,7 +84,7 @@ export default function HomePage() {
           <span className="text-gradient-gold">ACE</span>
           <span className="text-foreground ml-2">ARENA</span>
         </h1>
-        <p className="text-muted-foreground text-sm md:text-base tracking-widest uppercase mb-6">
+        <p className="text-muted-foreground text-sm md:text-base tracking-widest uppercase mb-6 font-medium">
           Premium Online Poker
         </p>
         <div className="flex items-center justify-center gap-6 mb-10">
@@ -100,7 +105,7 @@ export default function HomePage() {
         >
           <Loader2 className="w-10 h-10 text-gold/40" />
         </motion.div>
-        <p className="text-sm text-muted-foreground animate-pulse tracking-widest uppercase">
+        <p className="text-sm text-muted-foreground animate-pulse tracking-widest uppercase font-medium">
           Entering the arena...
         </p>
       </motion.div>
