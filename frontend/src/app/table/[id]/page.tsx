@@ -799,23 +799,59 @@ export default function TablePage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="absolute inset-0 flex items-center justify-center z-[200] bg-black/60 p-4 backdrop-blur-sm"
+                className="absolute inset-0 flex items-center justify-center z-[200] bg-black/45 p-4 backdrop-blur-[3px]"
               >
-                <div
-                  className="px-6 py-5 rounded-2xl max-w-lg w-full"
+                <motion.div
+                  initial={{ y: 30, scale: 0.92 }}
+                  animate={{ y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                  className="relative px-6 py-6 rounded-3xl max-w-lg w-full overflow-hidden"
                   style={{
-                    background: "rgba(15, 15, 30, 0.95)",
-                    border: "1px solid rgba(212, 168, 67, 0.3)",
-                    backdropFilter: "blur(20px)",
-                    boxShadow: "0 0 40px rgba(212, 168, 67, 0.1)",
+                    background: "linear-gradient(160deg, rgba(30, 24, 10, 0.97), rgba(12, 12, 22, 0.97))",
+                    border: "1px solid rgba(232, 185, 35, 0.4)",
+                    boxShadow: "0 0 60px rgba(232, 185, 35, 0.18), 0 30px 80px rgba(0,0,0,0.6)",
                   }}
                 >
-                  <h3 className="text-center text-lg font-bold text-gradient-gold mb-4 flex items-center justify-center gap-2">
-                    <Trophy className="w-5 h-5" />
-                    <span>Showdown</span>
-                  </h3>
-                  <div className="space-y-3">
-                    {handResults.map((result, i) => {
+                  {/* Radiating glow behind the headline */}
+                  <motion.div
+                    aria-hidden
+                    className="absolute -top-32 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full pointer-events-none"
+                    style={{ background: "radial-gradient(circle, rgba(232,185,35,0.35) 0%, transparent 65%)" }}
+                    animate={{ scale: [0.9, 1.1, 0.9], opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  {(() => {
+                    const top = [...handResults].sort((a, b) => b.winnings - a.winnings)[0];
+                    if (!top || top.winnings <= 0) return null;
+                    const iWon = top.player_id === user?.id;
+                    const name = gameState?.players.find((p) => p.id === top.player_id)?.display_name || "Unknown";
+                    return (
+                      <div className="relative text-center mb-5">
+                        <motion.div
+                          initial={{ scale: 0, rotate: -30 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.1 }}
+                          className="mx-auto mb-2 w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-gold-light via-gold to-gold-dark shadow-[0_0_30px_rgba(232,185,35,0.6)]"
+                        >
+                          <Trophy className="w-6 h-6 text-black" />
+                        </motion.div>
+                        <h3 className="text-2xl md:text-3xl font-black text-gradient-gold leading-tight">
+                          {iWon ? "You win!" : `${name} wins`}
+                        </h3>
+                        <motion.p
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.35 }}
+                          className="mt-1 text-sm text-white/70"
+                        >
+                          <span className="font-black text-gold tabular-nums">+{top.winnings.toLocaleString()}</span>
+                          {top.hand_rank && <> · {top.hand_rank}</>}
+                        </motion.p>
+                      </div>
+                    );
+                  })()}
+                  <div className="relative space-y-2.5">
+                    {[...handResults].sort((a, b) => b.winnings - a.winnings).map((result, i) => {
                       const playerName =
                         gameState?.players.find(
                           (p) => p.id === result.player_id,
@@ -870,10 +906,10 @@ export default function TablePage() {
                       );
                     })}
                   </div>
-                  <p className="text-center text-[10px] text-muted-foreground mt-3 animate-pulse">
-                    Next hand starting soon...
+                  <p className="relative text-center text-[10px] uppercase tracking-[0.25em] text-muted-foreground mt-4 animate-pulse">
+                    Next hand starting soon
                   </p>
-                </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
