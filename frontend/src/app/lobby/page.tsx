@@ -413,24 +413,32 @@ export default function LobbyPage() {
                       </div>
 
                       <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: table.max_players }).map(
-                            (_, j) => (
+                        {/* Mini table: occupied seats lit around a felt oval */}
+                        <div className="relative w-24 h-14">
+                          <div className="rail absolute inset-[6px] rounded-full p-[3px]">
+                            <div className="felt w-full h-full rounded-full" />
+                          </div>
+                          {Array.from({ length: table.max_players }).map((_, j) => {
+                            const angle = Math.PI / 2 + (j / table.max_players) * Math.PI * 2;
+                            const taken = j < table.current_players;
+                            return (
                               <div
                                 key={j}
-                                className="w-1.5 h-1.5 rounded-full"
+                                className={`absolute w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2 transition-transform group-hover:scale-125 ${
+                                  taken
+                                    ? "bg-gold shadow-[0_0_6px_rgba(232,185,35,0.8)]"
+                                    : "bg-white/15 border border-white/10"
+                                }`}
                                 style={{
-                                  background:
-                                    j < table.current_players
-                                      ? "linear-gradient(135deg, #2ecc71, #27ae60)"
-                                      : "rgba(255,255,255,0.08)",
+                                  left: `${50 + 47 * Math.cos(angle)}%`,
+                                  top: `${50 + 44 * Math.sin(angle)}%`,
                                 }}
                               />
-                            ),
-                          )}
+                            );
+                          })}
                         </div>
-                        <span className="text-[10px] text-muted-foreground mt-0.5">
-                          {table.current_players}/{table.max_players}
+                        <span className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                          {table.current_players}/{table.max_players} seated
                         </span>
                       </div>
                     </div>
