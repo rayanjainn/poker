@@ -36,10 +36,10 @@ const SUIT_SVGS: Record<string, React.ReactNode> = {
 };
 
 const SUIT_COLORS: Record<string, string> = {
-  Hearts: "#ea3323", // Casino red
-  Diamonds: "#ea3323",
-  Clubs: "#0d0d14",  // Casino black
-  Spades: "#0d0d14",
+  Hearts: "#d61f2c",
+  Diamonds: "#d61f2c",
+  Clubs: "#111827",
+  Spades: "#111827",
 };
 
 const RANK_DISPLAY: Record<string, string> = {
@@ -77,9 +77,9 @@ export function PokerCard({
 }: PokerCardProps) {
   const sizeStyles = {
     xs: { width: 34, height: 48, rank: 9, suit: 8, center: 16 },
-    sm: { width: 44, height: 62, rank: 11, suit: 10, center: 20 },
-    md: { width: 62, height: 86, rank: 14, suit: 12, center: 28 },
-    lg: { width: 80, height: 112, rank: 18, suit: 16, center: 36 },
+    sm: { width: 44, height: 62, rank: 13, suit: 10, center: 22 },
+    md: { width: 62, height: 86, rank: 18, suit: 13, center: 30 },
+    lg: { width: 80, height: 112, rank: 22, suit: 16, center: 40 },
   };
 
   const s = sizeStyles[size];
@@ -87,21 +87,25 @@ export function PokerCard({
   if (faceDown || !card) {
     return (
       <motion.div
-        initial={{ rotateY: 180, scale: 0.8, opacity: 0 }}
-        animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-        transition={{ duration: 0.4, delay }}
-        className={`relative rounded-lg overflow-hidden cursor-default select-none shrink-0 shadow-lg ${className}`}
+        initial={{ rotateY: 180, y: -24, scale: 0.7, opacity: 0 }}
+        animate={{ rotateY: 0, y: 0, scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 22, delay }}
+        className={`card-back relative rounded-lg overflow-hidden cursor-default select-none shrink-0 ${className}`}
         style={{
           width: s.width,
           height: s.height,
-          background: "#da4a4a", // PokerNow red card back
-          border: "2px solid #ffffff",
+          border: "2px solid #fdf6e3",
+          boxShadow: "0 6px 14px rgba(0,0,0,0.45)",
+          transformPerspective: 600,
         }}
       >
-        <div className="absolute inset-2 border border-white/30 rounded-md flex items-center justify-center">
-          <span className="text-white/80 font-bold tracking-widest rotate-[-45deg] select-none" style={{ fontSize: s.width * 0.15 }}>
-            POKER
-          </span>
+        <div className="absolute inset-[3px] rounded-[5px] border border-[#f7e19f]/40 flex items-center justify-center">
+          <div
+            className="rounded-full border border-[#f7e19f]/50 bg-black/20 flex items-center justify-center text-[#f7e19f]"
+            style={{ width: s.width * 0.45, height: s.width * 0.45 }}
+          >
+            <div style={{ width: s.width * 0.24, height: s.width * 0.24 }}>{SUIT_SVGS.Spades}</div>
+          </div>
         </div>
       </motion.div>
     );
@@ -113,56 +117,37 @@ export function PokerCard({
 
   return (
     <motion.div
-      initial={{ rotateY: 180, scale: 0.8, opacity: 0 }}
-      animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-      transition={{ duration: 0.4, delay, type: "spring", stiffness: 200 }}
-      className={`relative rounded-lg cursor-default select-none shrink-0 flex flex-col items-center bg-white shadow-xl ${className}`}
+      initial={{ rotateY: 180, y: -24, scale: 0.7, opacity: 0 }}
+      animate={{ rotateY: 0, y: highlight ? -6 : 0, scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22, delay }}
+      className={`card-face relative rounded-lg cursor-default select-none shrink-0 flex flex-col items-center ${className}`}
       style={{
         width: s.width,
         height: s.height,
-        border: highlight
-          ? "2.5px solid #d4a843"
-          : "1px solid rgba(0,0,0,0.1)",
+        transformPerspective: 600,
+        border: highlight ? "2px solid #e8b923" : "1px solid rgba(0,0,0,0.12)",
         boxShadow: highlight
-          ? "0 0 15px rgba(212,168,67,0.4), 0 4px 12px rgba(0,0,0,0.3)"
-          : "0 4px 12px rgba(0,0,0,0.15)",
+          ? "0 0 18px rgba(232,185,35,0.65), 0 8px 18px rgba(0,0,0,0.4)"
+          : "0 6px 14px rgba(0,0,0,0.35), inset 0 -2px 0 rgba(0,0,0,0.05)",
       }}
     >
       {/* Top Left */}
       <div
         className="absolute flex flex-col items-center"
         style={{
-          top: size === "xs" ? 1 : 2,
+          top: size === "xs" ? 2 : 4,
           left: size === "xs" ? 2 : 4,
           color,
-          width: s.suit,
+          width: Math.max(s.suit, s.rank),
         }}
       >
-        <span className="font-black leading-none" style={{ fontSize: s.rank }}>{rank}</span>
-        <div className="w-full mt-0.5">{suitIcon}</div>
+        <span className="font-black leading-none tracking-tighter" style={{ fontSize: s.rank }}>{rank}</span>
+        <div className="mt-0.5" style={{ width: s.suit }}>{suitIcon}</div>
       </div>
 
       {/* Center Large Suit */}
-      <div
-        className="absolute inset-0 flex items-center justify-center p-3 opacity-90"
-        style={{ color }}
-      >
-        <div style={{ width: s.center, height: s.center }}>{suitIcon}</div>
-      </div>
-
-      {/* Bottom Right */}
-      <div
-        className="absolute flex flex-col items-center"
-        style={{
-          bottom: size === "xs" ? 1 : 2,
-          right: size === "xs" ? 2 : 4,
-          color,
-          width: s.suit,
-          transform: "rotate(180deg)",
-        }}
-      >
-        <span className="font-black leading-none" style={{ fontSize: s.rank }}>{rank}</span>
-        <div className="w-full mt-0.5">{suitIcon}</div>
+      <div className="absolute inset-0 flex items-center justify-center" style={{ color }}>
+        <div style={{ width: s.center, height: s.center, marginTop: s.height * 0.12, marginLeft: s.width * 0.12 }}>{suitIcon}</div>
       </div>
     </motion.div>
   );

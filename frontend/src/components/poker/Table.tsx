@@ -9,19 +9,14 @@ import {
   Ruler, 
   Target, 
   Users, 
-  Star, 
   Play, 
   UserPlus, 
   Clock, 
-  Trophy,
-  ChevronRight,
   Dices,
-  Sparkles,
-  Info
+  Sparkles
 } from "lucide-react";
 import { PokerCard } from "./Card";
 import { PlayerSeat } from "./Player";
-import { ChipStack } from "./ChipStack";
 import { BettingControls } from "./BettingControls";
 import { Button } from "@/components/ui/button";
 import type { GameState, Card as CardType, HandResultInfo } from "@/lib/types";
@@ -41,12 +36,12 @@ interface PokerTableProps {
 const SEAT_POSITIONS_DESKTOP: { x: string; y: string }[] = [
   { x: "50%", y: "90%" }, // Seat 0 - Bottom center (current user)
   { x: "15%", y: "82%" }, // Seat 1 - Bottom left
-  { x: "2%",  y: "50%" }, // Seat 2 - Left
+  { x: "5%",  y: "50%" }, // Seat 2 - Left
   { x: "15%", y: "18%" }, // Seat 3 - Top left
   { x: "38%", y: "5%" },  // Seat 4 - Top left-center
   { x: "62%", y: "5%" },  // Seat 5 - Top right-center
   { x: "85%", y: "18%" }, // Seat 6 - Top right
-  { x: "98%", y: "50%" }, // Seat 7 - Right
+  { x: "95%", y: "50%" }, // Seat 7 - Right
   { x: "85%", y: "82%" }, // Seat 8 - Bottom right
 ];
 
@@ -63,18 +58,30 @@ const SEAT_POSITIONS_MOBILE: { x: string; y: string }[] = [
   { x: "88%", y: "85%" },
 ];
 
+const RANK_ORDER: Record<string, number> = {
+  Two: 2, Three: 3, Four: 4, Five: 5, Six: 6, Seven: 7, Eight: 8,
+  Nine: 9, Ten: 10, Jack: 11, Queen: 12, King: 13, Ace: 14,
+};
+
+// True if the ranks contain five consecutive values (ace plays low too)
+function hasRun(ranks: number[]): boolean {
+  const set = new Set(ranks);
+  if (set.has(14)) set.add(1);
+  const sorted = [...set].sort((a, b) => a - b);
+  let run = 1;
+  for (let i = 1; i < sorted.length; i++) {
+    run = sorted[i] === sorted[i - 1] + 1 ? run + 1 : 1;
+    if (run >= 5) return true;
+  }
+  return false;
+}
+
 // Simple hand strength evaluator for helper display
 function getHandStrength(holeCards: CardType[], communityCards: CardType[]): string | null {
   if (holeCards.length < 2) return null;
   
   const allCards = [...holeCards, ...communityCards];
-  const ranks = allCards.map(c => {
-    const order: Record<string, number> = {
-      Two: 2, Three: 3, Four: 4, Five: 5, Six: 6, Seven: 7, Eight: 8,
-      Nine: 9, Ten: 10, Jack: 11, Queen: 12, King: 13, Ace: 14,
-    };
-    return order[c.rank] || 0;
-  });
+  const ranks = allCards.map(c => RANK_ORDER[c.rank] || 0);
   const suits = allCards.map(c => c.suit);
 
   // Check for pairs, trips, etc.
@@ -92,19 +99,13 @@ function getHandStrength(holeCards: CardType[], communityCards: CardType[]): str
   const hasFlush = Object.values(suitCounts).some(c => c >= 5);
   
   // Check straight (simplified)
-  const uniqueRanks = [...new Set(ranks)].sort((a, b) => a - b);
-  let hasStraight = false;
-  for (let i = 0; i <= uniqueRanks.length - 5; i++) {
-    if (uniqueRanks[i + 4] - uniqueRanks[i] === 4) {
-      hasStraight = true;
-    }
-  }
-  // Ace-low straight
-  if (uniqueRanks.includes(14) && uniqueRanks.includes(2) && uniqueRanks.includes(3) && uniqueRanks.includes(4) && uniqueRanks.includes(5)) {
-    hasStraight = true;
-  }
+  const hasStraight = hasRun(ranks);
 
-  if (hasFlush && hasStraight) return "Straight Flush";
+  if (hasFlush && hasStraight) {
+    const flushSuit = Object.entries(suitCounts).find(([, c]) => c >= 5)?.[0];
+    const suited = allCards.filter(c => c.suit === flushSuit).map(c => RANK_ORDER[c.rank] || 0);
+    if (hasRun(suited)) return "Straight Flush";
+  }
   if (counts[0] === 4) return "Four of a Kind";
   if (counts[0] === 3 && counts[1] >= 2) return "Full House";
   if (hasFlush) return "Flush";
@@ -159,27 +160,19 @@ export function PokerTable({
   }, []);
 
   const seatPositions = isMobile ? SEAT_POSITIONS_MOBILE : SEAT_POSITIONS_DESKTOP;
-  const handStrength = getHandStrength(holeCards, gameState.community_cards);
+  const handStrength = currentPlayer?.current_hand_rank || getHandStrength(holeCards, gameState.community_cards);
+
 
   return (
-    <div className="relative w-full h-full flex items-center md:items-start justify-center p-2 md:p-12 overflow-hidden bg-[#18181A]">
+    <div className="table-bg relative w-full h-full flex items-start justify-center px-2 pt-10 pb-2 md:p-12 overflow-hidden">
       <div className="relative w-full aspect-[4/5] md:aspect-[2/1] max-w-[1200px] mt-0 md:mt-[2vh]">
         {/* Table felt (PokerNow Style) */}
         <div className="absolute top-[5%] bottom-[5%] left-[5%] right-[5%] md:top-[5%] md:bottom-[5%] md:left-[10%] md:right-[10%] flex items-center justify-center">
           <div
-            className="w-full h-full rounded-full relative overflow-visible flex flex-col items-center justify-center"
-            style={{
-              background: "#228b4d", // Solid Poker Green
-              border: isMobile ? "8px solid #141416" : "15px solid #28282b",
-              boxShadow: "inset 0 0 60px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.8)",
-            }}
+            className="rail w-full h-full rounded-full relative"
+            style={{ padding: isMobile ? 8 : 16 }}
           >
-            {/* Top Right Game Info (PokerNow Style) */}
-            <div className="absolute top-4 right-10 md:top-8 md:right-16 text-white/40 flex items-center gap-2 pointer-events-none">
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-wider">
-                NLH ~ {gameState.small_blind}/{gameState.big_blind} 💣
-              </span>
-            </div>
+          <div className="felt w-full h-full rounded-full relative overflow-visible flex flex-col items-center justify-center">
             {/* Center Area (Community Cards & Pot) */}
             <div className="flex flex-col items-center justify-center gap-4 z-20">
               {/* Pot display */}
@@ -187,15 +180,19 @@ export function PokerTable({
                 <AnimatePresence>
                   {gameState.pot > 0 && (
                     <motion.div
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      className="flex items-center gap-2 bg-[#175231] px-4 py-1.5 rounded-full shadow-inner"
+                      key={gameState.pot}
+                      initial={{ scale: 0.85, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                      className="flex items-center gap-2 bg-black/35 border border-white/10 pl-1.5 pr-4 py-1 rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-sm"
                     >
-                      <span className="text-white font-bold text-lg md:text-xl">
+                      <span className="chip w-5 h-5 md:w-6 md:h-6 rounded-full" />
+                      <span className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Pot</span>
+                      <span className="text-white font-black text-lg md:text-xl tabular-nums">
                         {gameState.pot >= 1000 ? (gameState.pot/1000).toFixed(1) + 'k' : gameState.pot}
                       </span>
                       {gameState.current_bet > 0 && (
-                        <span className="text-white/70 font-semibold text-xs md:text-sm">
+                        <span className="hidden md:inline text-white/70 font-semibold text-xs md:text-sm">
                           total {gameState.pot + gameState.players.reduce((acc, p) => acc + p.current_bet, 0)}
                         </span>
                       )}
@@ -205,16 +202,24 @@ export function PokerTable({
               </div>
 
               {/* Community Cards */}
-              <div className="flex gap-2">
-                {gameState.community_cards.map((card, i) => (
-                  <PokerCard
-                    key={`${card.rank}-${card.suit}-${i}`}
-                    card={card}
-                    size={isMobile ? "sm" : "lg"}
-                    delay={i * 0.1}
-                    className="shadow-[0_4px_10px_rgba(0,0,0,0.4)]"
-                  />
-                ))}
+              <div className="flex gap-1.5 md:gap-2">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const card = gameState.community_cards[i];
+                  return card ? (
+                    <PokerCard
+                      key={`${card.rank}-${card.suit}`}
+                      card={card}
+                      size={isMobile ? "sm" : "lg"}
+                      delay={i < 3 ? i * 0.12 : 0}
+                    />
+                  ) : (
+                    <div
+                      key={`slot-${i}`}
+                      className="rounded-lg border border-dashed border-white/15 bg-black/10"
+                      style={isMobile ? { width: 44, height: 62 } : { width: 80, height: 112 }}
+                    />
+                  );
+                })}
               </div>
 
               {/* Phase indicator */}
@@ -239,6 +244,7 @@ export function PokerTable({
                 )}
               </div>
             </div>
+          </div>
           </div>
         </div>
 
@@ -282,13 +288,13 @@ export function PokerTable({
                     disabled={isSeated}
                     className="group"
                   >
-                    <div className="w-16 h-10 md:w-20 md:h-12 rounded-lg border-2 border-dashed border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all flex flex-col items-center justify-center">
-                       <span className="text-[10px] md:text-xs font-black text-white/20 uppercase tracking-[0.2em] group-hover:text-white/40 group-hover:scale-110 transition-all">
-                        {seatIndex}
-                       </span>
-                       <span className="text-[8px] md:text-[10px] font-black text-white/10 uppercase tracking-widest leading-none group-hover:text-white/30 transition-all">
-                        S I T
-                       </span>
+                    <div className={`w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-dashed flex flex-col items-center justify-center transition-all duration-200 ${isSeated ? "border-white/5 bg-black/20 opacity-40" : "border-white/25 bg-black/40 group-hover:border-gold/70 group-hover:bg-gold/10 group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(232,185,35,0.35)]"}`}>
+                       <UserPlus className={`w-4 h-4 ${isSeated ? "text-white/15" : "text-white/50 group-hover:text-gold"} transition-colors`} />
+                       {!isSeated && (
+                         <span className="text-[8px] font-black text-white/30 uppercase tracking-widest leading-none mt-0.5 group-hover:text-gold transition-colors">
+                          Sit
+                         </span>
+                       )}
                     </div>
                   </button>
                 </div>

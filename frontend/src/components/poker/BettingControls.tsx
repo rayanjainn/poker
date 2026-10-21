@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
   Ban, 
@@ -32,17 +32,54 @@ export function BettingControls({
   isActionOn,
   onAction,
 }: BettingControlsProps) {
-  const toCall = currentBet - playerCurrentBet;
-  const minRaise = currentBet + bigBlind;
+  const toCall = Math.max(0, currentBet - playerCurrentBet);
+  // Raise-to is capped by the stack; if a full min-raise is unaffordable the slider collapses to all-in
+  const maxRaiseTo = playerChips + playerCurrentBet;
+  const minRaise = Math.min(currentBet + bigBlind, maxRaiseTo);
   const [raiseAmount, setRaiseAmount] = useState(minRaise);
+  const clamp = useCallback(
+    (v: number) => Math.max(minRaise, Math.min(maxRaiseTo, Math.round(v))),
+    [minRaise, maxRaiseTo]
+  );
 
   const canCheck = toCall === 0;
   const canCall = toCall > 0 && playerChips > 0;
   const canRaise = playerChips > toCall;
+  const raiseIsAllIn = raiseAmount >= maxRaiseTo;
 
   const handleRaise = useCallback(() => {
-    onAction("raise", raiseAmount - playerCurrentBet);
-  }, [onAction, raiseAmount, playerCurrentBet]);
+    const to = clamp(raiseAmount);
+    if (to >= maxRaiseTo) onAction("all_in");
+    else onAction("raise", to - playerCurrentBet);
+  }, [onAction, raiseAmount, playerCurrentBet, clamp, maxRaiseTo]);
+
+  // Pot-sized presets: raise to (current bet + fraction of the pot after calling)
+  const potAfterCall = pot + toCall;
+  const presets = [
+    { label: "Min", value: minRaise },
+    { label: "½ Pot", value: currentBet + potAfterCall / 2 },
+    { label: "¾ Pot", value: currentBet + (potAfterCall * 3) / 4 },
+    { label: "Pot", value: currentBet + potAfterCall },
+  ].map((p) => ({ ...p, value: clamp(p.value) }));
+
+  // Keyboard shortcuts: F fold, C check/call, R raise, A all-in
+  useEffect(() => {
+    if (!isActionOn) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "f") onAction("fold");
+      else if (k === "c" || k === "k") {
+        if (canCheck) onAction("check");
+        else if (canCall) onAction("call");
+      } else if (k === "r" && canRaise) handleRaise();
+      else if (k === "a") onAction("all_in");
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isActionOn, onAction, canCheck, canCall, canRaise, handleRaise]);
 
   if (!isActionOn) return null;
 
@@ -63,6 +100,11 @@ export function BettingControls({
           boxShadow: "0 -4px 30px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)",
         }}
       >
+        <div className="flex items-center justify-between mb-3 px-1">
+          <span className="text-xs font-black uppercase tracking-[0.2em] text-gold">Your turn</span>
+          <span className="hidden md:inline text-[9px] text-white/35 font-semibold tracking-wider">F · C · R · A</span>
+        </div>
+
         {/* Raise slider */}
         {canRaise && (
           <div className="mb-3 px-1">
@@ -80,6 +122,7 @@ export function BettingControls({
                     const val = parseInt(e.target.value);
                     if (!isNaN(val)) setRaiseAmount(val);
                   }}
+                  onBlur={() => setRaiseAmount((v) => clamp(v))}
                   className="bg-transparent border-none p-0 text-sm font-black text-gold focus:ring-0 w-20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
@@ -87,7 +130,7 @@ export function BettingControls({
             <Slider
               value={[raiseAmount]}
               min={minRaise}
-              max={playerChips + playerCurrentBet}
+              max={maxRaiseTo}
               step={bigBlind}
               onValueChange={(v) =>
                 setRaiseAmount(Array.isArray(v) ? v[0] : (v as number))
@@ -97,25 +140,15 @@ export function BettingControls({
 
             {/* Quick bet presets */}
             <div className="flex gap-1.5">
-              {[
-                { label: "Min", value: minRaise },
-                { label: "1/2", value: Math.max(minRaise, Math.floor(pot / 2)) },
-                { label: "3/4", value: Math.max(minRaise, Math.floor((pot * 3) / 4)) },
-                { label: "Pot", value: Math.max(minRaise, pot) },
-              ].map((preset) => (
+              {presets.map((preset) => (
                 <button
                   key={preset.label}
-                  onClick={() =>
-                    setRaiseAmount(
-                      Math.min(preset.value, playerChips + playerCurrentBet)
-                    )
-                  }
-                  className="flex-1 px-1 py-1 text-[9px] font-bold rounded-md transition-all hover:scale-105"
-                  style={{
-                    background: "rgba(212, 168, 67, 0.1)",
-                    border: "1px solid rgba(212, 168, 67, 0.2)",
-                    color: "#d4a843",
-                  }}
+                  onClick={() => setRaiseAmount(preset.value)}
+                  className={`flex-1 px-1 py-1.5 text-[10px] font-bold rounded-lg transition-all hover:-translate-y-0.5 active:translate-y-0 ${
+                    raiseAmount === preset.value
+                      ? "bg-gold text-black border border-gold shadow-[0_0_12px_rgba(232,185,35,0.45)]"
+                      : "bg-gold/10 text-gold border border-gold/25 hover:bg-gold/20"
+                  }`}
                 >
                   {preset.label}
                 </button>
@@ -130,7 +163,7 @@ export function BettingControls({
           <div className="flex gap-2">
             <Button
               onClick={() => onAction("fold")}
-              className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.35)]"
               style={{
                 background: "#c0392b",
                 border: "1px solid #e74c3c",
@@ -145,7 +178,7 @@ export function BettingControls({
             {canCheck ? (
               <Button
                 onClick={() => onAction("check")}
-                className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.35)]"
                 style={{
                   background: "linear-gradient(135deg, #2d6b3f, #27ae60)",
                   border: "1px solid rgba(39, 174, 96, 0.5)",
@@ -158,7 +191,7 @@ export function BettingControls({
             ) : canCall ? (
               <Button
                 onClick={() => onAction("call")}
-                className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.35)]"
                 style={{
                   background: "linear-gradient(135deg, #2d6b3f, #27ae60)",
                   border: "1px solid rgba(39, 174, 96, 0.5)",
@@ -176,7 +209,7 @@ export function BettingControls({
             {canRaise && (
               <Button
                 onClick={handleRaise}
-                className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.35)]"
                 style={{
                   background: "linear-gradient(135deg, #a07c2a, #d4a843)",
                   border: "1px solid rgba(212, 168, 67, 0.5)",
@@ -184,13 +217,13 @@ export function BettingControls({
                 }}
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                <span>Raise</span>
+                <span className="tabular-nums">{raiseIsAllIn ? "All In" : `Raise ${clamp(raiseAmount).toLocaleString()}`}</span>
               </Button>
             )}
 
             <Button
               onClick={() => onAction("all_in")}
-              className="flex-1 h-10 text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              className="flex-1 h-12 rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_12px_rgba(0,0,0,0.35)]"
               style={{
                 background: "linear-gradient(135deg, #8e44ad, #9b59b6)",
                 border: "1px solid rgba(155, 89, 182, 0.5)",

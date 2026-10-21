@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChipStack } from "./ChipStack";
 import type { PlayerInfo, Card as CardType } from "@/lib/types";
 import { PokerCard } from "./Card";
+
+function formatChips(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0) + "M";
+  if (n >= 10_000) return (n / 1000).toFixed(n % 1000 ? 1 : 0) + "k";
+  return n.toLocaleString();
+}
 
 interface PlayerSeatProps {
   player: PlayerInfo;
@@ -39,6 +43,9 @@ export function PlayerSeat({
     .toUpperCase()
     .slice(0, 2);
 
+  // Stable per-player avatar color
+  const hue = [...player.id].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+
   const cardSize = isMobile ? "xs" : "sm";
   const myCardSize = isMobile ? "sm" : "md";
 
@@ -46,10 +53,7 @@ export function PlayerSeat({
   const [timeLeftPercent, setTimeLeftPercent] = useState(100);
 
   useEffect(() => {
-    if (!isActionOn || !turnExpiresAt) {
-      setTimeLeftPercent(100);
-      return;
-    }
+    if (!isActionOn || !turnExpiresAt) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -62,6 +66,9 @@ export function PlayerSeat({
     return () => clearInterval(interval);
   }, [isActionOn, turnExpiresAt, turnTimeoutSeconds]);
 
+  const timerPercent = isActionOn && turnExpiresAt ? timeLeftPercent : 100;
+  const timerColor = timerPercent > 50 ? "#4ade80" : timerPercent > 20 ? "#facc15" : "#ef4444";
+
   // Vector calculation to push cards towards center of table (50, 50)
   const cx = parseFloat(position.x);
   const cy = parseFloat(position.y);
@@ -71,7 +78,7 @@ export function PlayerSeat({
   const nx = dx / dist;
   const ny = dy / dist;
 
-  const inwardOffset = isMobile ? 55 : 85;
+  const inwardOffset = isMobile ? 46 : 85;
   const cardTranslateX = nx * inwardOffset;
   const cardTranslateY = ny * inwardOffset;
 
@@ -167,65 +174,86 @@ export function PlayerSeat({
         )}
       </motion.div>
 
-      {/* Main Info Card (PokerNow Style) */}
+      {/* Seat plate */}
       <div className="relative group z-10">
-        <div
-          className={`relative rounded-lg flex flex-col justify-center transition-all duration-300 ${
-            player.is_folded || player.is_sitting_out ? "opacity-50" : ""
-          } ${isActionOn ? "bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.8)] z-30 scale-105" : "bg-[#1c1c1c]/90 text-white z-10"}`}
+        <motion.div
+          animate={{ scale: isActionOn ? 1.06 : 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          className={`relative flex items-center gap-2 rounded-full transition-[opacity,filter] duration-300 ${
+            player.is_folded || player.is_sitting_out ? "opacity-45 grayscale" : ""
+          } ${isActionOn ? "animate-action-ring" : ""}`}
           style={{
-            minWidth: isMobile ? 100 : 130,
-            height: isMobile ? 45 : 55,
-            padding: "4px 12px",
-            border: isActionOn ? "none" : "1px solid rgba(255, 255, 255, 0.05)",
+            minWidth: isMobile ? 104 : 140,
+            padding: isMobile ? "3px 12px 3px 3px" : "4px 16px 4px 4px",
+            background: isCurrentUser
+              ? "linear-gradient(135deg, rgba(58,44,12,0.95), rgba(20,16,8,0.95))"
+              : "linear-gradient(135deg, rgba(34,34,46,0.95), rgba(14,14,20,0.95))",
+            border: isCurrentUser ? "1px solid rgba(232,185,35,0.45)" : "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07)",
           }}
         >
-          {/* Action Timer - Progress Bar at Bottom */}
-          {isActionOn && (
-            <div className="absolute bottom-0 left-0 h-1.5 bg-[#4caf50]/30 w-full z-20 rounded-b-lg overflow-hidden">
-              <motion.div
-                className="h-full bg-[#4caf50]"
-                initial={{ width: "100%" }}
-                animate={{ width: `${timeLeftPercent}%` }}
-                transition={{ duration: 0.2, ease: "linear" }}
-              />
+          {/* Avatar with circular turn timer */}
+          <div className="relative shrink-0" style={{ width: isMobile ? 34 : 42, height: isMobile ? 34 : 42 }}>
+            <div
+              className="absolute inset-[3px] rounded-full flex items-center justify-center font-black text-white"
+              style={{
+                background: `linear-gradient(135deg, hsl(${hue} 70% 50%), hsl(${(hue + 40) % 360} 70% 32%))`,
+                fontSize: isMobile ? 11 : 13,
+              }}
+            >
+              {initials}
             </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            {!isActionOn && (
-               <div className="w-6 h-6 flex items-center justify-center rounded bg-white/10 shrink-0">
-                  <span className="text-[10px] uppercase font-bold text-white/50">{initials}</span>
-               </div>
+            {isActionOn && (
+              <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="16.5" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="2.5" />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="16.5"
+                  fill="none"
+                  stroke={timerColor}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  pathLength={100}
+                  strokeDasharray={`${timerPercent} 100`}
+                  style={{ transition: "stroke-dasharray 0.1s linear, stroke 0.3s" }}
+                />
+              </svg>
             )}
-            <div className="flex flex-col overflow-hidden">
-              <span className={`font-bold truncate ${isActionOn ? "text-sm text-black" : "text-xs text-white/90"}`}>
-                {player.display_name}
-              </span>
-              <span className={`font-black ${isActionOn ? "text-lg text-black leading-tight" : "text-sm text-white"} truncate`}>
-                {player.chips >= 1000 ? (player.chips/1000).toFixed(1) + 'k' : player.chips}
-              </span>
-            </div>
           </div>
-        </div>
 
-        {player.is_sitting_out && (
+          <div className="flex flex-col overflow-hidden leading-tight">
+            <span className={`font-semibold truncate ${isMobile ? "text-[10px]" : "text-xs"} ${isCurrentUser ? "text-gold-light" : "text-white/75"}`}>
+              {isCurrentUser ? "You" : player.display_name}
+            </span>
+            <motion.span
+              key={player.chips}
+              initial={{ y: -4, opacity: 0.4 }}
+              animate={{ y: 0, opacity: 1 }}
+              className={`font-black tabular-nums text-white ${isMobile ? "text-xs" : "text-sm"}`}
+            >
+              {formatChips(player.chips)}
+            </motion.span>
+          </div>
+        </motion.div>
+
+        {(player.is_sitting_out || player.is_folded) && (
           <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] md:text-[10px] uppercase tracking-wider text-white/50 font-bold">
-            Waiting
+            {player.is_sitting_out ? "Waiting" : "Folded"}
           </div>
         )}
-        {player.is_folded && !player.is_sitting_out && (
-          <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] md:text-[10px] uppercase tracking-wider text-white/50 font-bold">
-            Folded
-          </div>
-        )}
 
-        {/* Dealer Button (PokerNow Style) */}
+        {/* Dealer Button */}
         {isDealer && (
           <motion.div
+            layoutId="dealer-button"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="absolute -right-2 -bottom-2 z-50 w-6 h-6 md:w-7 md:h-7 bg-white rounded-full flex items-center justify-center border-2 border-[#141416] shadow-xl pointer-events-none"
+            className="absolute -right-2 -top-2 z-50 w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center pointer-events-none"
+            style={{
+              background: "radial-gradient(circle at 35% 30%, #ffffff, #d9d9d9)",
+              boxShadow: "0 3px 8px rgba(0,0,0,0.6), inset 0 0 0 2px #c9c9c9",
+            }}
           >
             <span className="text-[10px] md:text-xs font-black text-black">D</span>
           </motion.div>
@@ -236,28 +264,21 @@ export function PlayerSeat({
       <AnimatePresence>
         {player.current_bet > 0 && (
           <motion.div
-            initial={{ scale: 0, opacity: 0 }}
+            initial={{ scale: 0.4, opacity: 0, x: 0, y: 0 }}
             animate={{ 
               scale: 1, 
               opacity: 1,
-              x: nx * (inwardOffset - (isMobile ? 35 : 55)),
-              y: ny * (inwardOffset - (isMobile ? 35 : 55)),
+              x: nx * (inwardOffset + (isMobile ? 34 : 58)),
+              y: ny * (inwardOffset + (isMobile ? 34 : 58)),
             }}
             exit={{ scale: 0, opacity: 0 }}
             className="absolute z-20 flex items-center justify-center pointer-events-none"
           >
-            <div 
-              className="flex items-center justify-center rounded-full font-black shadow-md border-2 border-[rgba(0,0,0,0.1)]"
-              style={{
-                backgroundColor: "#dced31", // Bright clear yellow/green
-                color: "#111",
-                minWidth: isMobile ? "32px" : "40px",
-                height: isMobile ? "32px" : "40px",
-                padding: "0 8px",
-                fontSize: isMobile ? "11px" : "14px",
-              }}
-            >
-              {player.current_bet >= 1000 ? (player.current_bet/1000).toFixed(1) + 'k' : player.current_bet}
+            <div className="flex items-center gap-1 rounded-full bg-black/45 border border-white/10 pl-0.5 pr-2 py-0.5 shadow-lg backdrop-blur-sm">
+              <span className="chip rounded-full" style={{ width: isMobile ? 16 : 20, height: isMobile ? 16 : 20 }} />
+              <span className={`font-black tabular-nums text-white ${isMobile ? "text-[11px]" : "text-sm"}`}>
+                {formatChips(player.current_bet)}
+              </span>
             </div>
           </motion.div>
         )}
