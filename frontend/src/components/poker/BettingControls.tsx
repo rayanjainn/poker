@@ -62,6 +62,37 @@ export function BettingControls({
     { label: "Pot", value: currentBet + potAfterCall },
   ].map((p) => ({ ...p, value: clamp(p.value) }));
 
+  // Turn alert: soft two-note chime, a buzz on phones, and a tab-title flag when backgrounded
+  useEffect(() => {
+    if (!isActionOn) return;
+    navigator.vibrate?.(60);
+    let ctx: AudioContext | null = null;
+    try {
+      ctx = new AudioContext();
+      const now = ctx.currentTime;
+      [880, 1318.5].forEach((freq, i) => {
+        const osc = ctx!.createOscillator();
+        const gain = ctx!.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, now + i * 0.12);
+        gain.gain.linearRampToValueAtTime(0.08, now + i * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
+        osc.connect(gain).connect(ctx!.destination);
+        osc.start(now + i * 0.12);
+        osc.stop(now + i * 0.12 + 0.4);
+      });
+    } catch {
+      // Autoplay policy or no audio support: the visual cue is enough
+    }
+    const prevTitle = document.title;
+    if (document.hidden) document.title = "● Your turn — " + prevTitle;
+    return () => {
+      document.title = prevTitle;
+      ctx?.close().catch(() => {});
+    };
+  }, [isActionOn]);
+
   // Keyboard shortcuts: F fold, C check/call, R raise, A all-in
   useEffect(() => {
     if (!isActionOn) return;
