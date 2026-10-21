@@ -337,7 +337,7 @@ export function PokerTable({
             playerChips={currentPlayer.chips}
             playerCurrentBet={currentPlayer.current_bet}
             bigBlind={gameState.big_blind}
-            pot={gameState.pot}
+            pot={gameState.pot + gameState.players.reduce((acc, p) => acc + p.current_bet, 0)}
             isActionOn={isActionOnMe}
             onAction={onAction}
           />

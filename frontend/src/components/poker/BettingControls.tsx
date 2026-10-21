@@ -53,7 +53,7 @@ export function BettingControls({
     else onAction("raise", to - playerCurrentBet);
   }, [onAction, raiseAmount, playerCurrentBet, clamp, maxRaiseTo]);
 
-  // Pot-sized presets: raise to (current bet + fraction of the pot after calling)
+  // Pot-sized presets: raise to (current bet + fraction of the pot after calling); pot includes live street bets
   const potAfterCall = pot + toCall;
   const presets = [
     { label: "Min", value: minRaise },
